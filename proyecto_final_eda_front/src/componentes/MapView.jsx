@@ -1,290 +1,225 @@
 import { useState } from "react";
-
 import {
-    MapContainer,
-    TileLayer,
-    Polyline,
-    Marker,
-    Popup
+  MapContainer,
+  TileLayer,
+  Polyline,
+  Marker,
+  Popup
 } from "react-leaflet";
 
 import "leaflet/dist/leaflet.css";
 
-export default function MapaRuta() {
+const RUTA_POR_DEFECTO = {
+  path: [
+    [19.0433, -98.2019],
+    [19.0415, -98.2063],
+    [19.0389, -98.2101],
+    [19.0355, -98.2142]
+  ]
+};
 
-    // ============================================
-    // ESTADOS
-    // ============================================
+const MapaRuta = () => {
 
-    const [inicio, setInicio] = useState({
-        lat: 19.0433,
-        lng: -98.2019
-    });
+  const [inicio, setInicio] = useState({
+    lat: 19.0433,
+    lng: -98.2019
+  });
 
-    const [fin, setFin] = useState({
-        lat: 19.0355,
-        lng: -98.2142
-    });
+  const [fin, setFin] = useState({
+    lat: 19.0355,
+    lng: -98.2142
+  });
 
-    // CAMBIO:
-    // Ahora la ruta es un array directamente.
-    const [ruta, setRuta] = useState([]);
+  const [ruta, setRuta] = useState(RUTA_POR_DEFECTO);
 
-    const [metricas, setMetricas] = useState(null);
+  const calcularRuta = async () => {
 
-    const [loading, setLoading] = useState(false);
+    if (
+      !inicio.lat ||
+      !inicio.lng ||
+      !fin.lat ||
+      !fin.lng
+    ) {
+      alert("Completa todas las coordenadas");
+      return;
+    }
 
-    // ============================================
-    // CALCULAR RUTA
-    // ============================================
+    try {
 
-    const calcularRuta = async () => {
+      // =========================
+      // CAMBIO IMPORTANTE
+      // =========================
+      // Ahora usamos los nombres
+      // que espera FastAPI
+      // =========================
+      const body = {
+        lat_inicio: Number(inicio.lat),
+        lon_inicio: Number(inicio.lng),
 
-        try {
+        lat_destino: Number(fin.lat),
+        lon_destino: Number(fin.lng),
 
-            setLoading(true);
+        algorithm: "dijkstra"
+      };
 
-            // CAMBIO:
-            // Body compatible con FastAPI.
-            const body = {
-
-                lat_inicio: Number(inicio.lat),
-                lon_inicio: Number(inicio.lng),
-
-                lat_final: Number(fin.lat),
-                lon_final: Number(fin.lng),
-
-                algorithm: "dijkstra"
-            };
-
-            // CAMBIO:
-            // URL real del backend.
-            const response = await fetch(
-                "http://127.0.0.1:8000/ruta",
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-
-                    body: JSON.stringify(body)
-                }
-            );
-
-            if (!response.ok) {
-
-                throw new Error(
-                    "Error calculando ruta"
-                );
-            }
-
-            const data = await response.json();
-
-            console.log(data);
-
-            // CAMBIO:
-            // coordinates viene desde FastAPI.
-            setRuta(data.coordinates);
-
-            setMetricas(data);
-
-        } catch (error) {
-
-            console.error(error);
-
-            alert("Error en backend");
-
-        } finally {
-
-            setLoading(false);
+      const response = await fetch(
+        "http://127.0.0.1:8000/routes",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(body)
         }
-    };
+      );
 
-    return (
+      const data = await response.json();
 
-        <div className="p-4">
+      console.log(data);
 
-            <h1>
-                Trazado de ruta
-            </h1>
+      // =========================
+      // CAMBIO IMPORTANTE
+      // =========================
+      // El backend devuelve "path"
+      // no "ruta"
+      // =========================
+      if (!data.path || data.path.length === 0) {
+        alert("No se encontró ruta");
+        return;
+      }
 
-            {/* =========================
-                INPUTS
-            ========================== */}
+      setRuta({
+        path: data.path
+      });
 
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "10px",
-                    marginBottom: "10px"
-                }}
-            >
+    } catch (error) {
 
-                <input
-                    placeholder="Latitud inicio"
-                    value={inicio.lat}
-                    onChange={(e) =>
-                        setInicio({
-                            ...inicio,
-                            lat: e.target.value
-                        })
-                    }
-                />
+      console.error(error);
+      alert("Error conectando con el backend");
+    }
+  };
 
-                <input
-                    placeholder="Longitud inicio"
-                    value={inicio.lng}
-                    onChange={(e) =>
-                        setInicio({
-                            ...inicio,
-                            lng: e.target.value
-                        })
-                    }
-                />
+  return (
+    <div className="p-4 grid gap-4">
 
-                <input
-                    placeholder="Latitud fin"
-                    value={fin.lat}
-                    onChange={(e) =>
-                        setFin({
-                            ...fin,
-                            lat: e.target.value
-                        })
-                    }
-                />
+      <h1 className="text-2xl font-bold">
+        Rutas Óptimas con Dijkstra
+      </h1>
 
-                <input
-                    placeholder="Longitud fin"
-                    value={fin.lng}
-                    onChange={(e) =>
-                        setFin({
-                            ...fin,
-                            lng: e.target.value
-                        })
-                    }
-                />
+      <div className="grid grid-cols-2 gap-2">
 
-            </div>
+        <input
+          type="number"
+          step="any"
+          placeholder="Latitud inicio"
+          value={inicio.lat}
+          onChange={(e) =>
+            setInicio({
+              ...inicio,
+              lat: e.target.value
+            })
+          }
+          className="border p-2 rounded"
+        />
 
-            {/* =========================
-                BOTÓN
-            ========================== */}
+        <input
+          type="number"
+          step="any"
+          placeholder="Longitud inicio"
+          value={inicio.lng}
+          onChange={(e) =>
+            setInicio({
+              ...inicio,
+              lng: e.target.value
+            })
+          }
+          className="border p-2 rounded"
+        />
 
-            <button onClick={calcularRuta}>
+        <input
+          type="number"
+          step="any"
+          placeholder="Latitud fin"
+          value={fin.lat}
+          onChange={(e) =>
+            setFin({
+              ...fin,
+              lat: e.target.value
+            })
+          }
+          className="border p-2 rounded"
+        />
 
-                {
-                    loading
-                        ? "Calculando..."
-                        : "Calcular ruta"
-                }
+        <input
+          type="number"
+          step="any"
+          placeholder="Longitud fin"
+          value={fin.lng}
+          onChange={(e) =>
+            setFin({
+              ...fin,
+              lng: e.target.value
+            })
+          }
+          className="border p-2 rounded"
+        />
 
-            </button>
+      </div>
 
-            {/* =========================
-                MÉTRICAS
-            ========================== */}
+      <button
+        onClick={calcularRuta}
+        className="bg-blue-600 text-white px-4 py-2 rounded"
+      >
+        Calcular ruta
+      </button>
 
-            {
-                metricas && (
+      <MapContainer
+        center={RUTA_POR_DEFECTO.path[0]}
+        zoom={14}
+        style={{
+          height: "500px",
+          width: "100%"
+        }}
+      >
 
-                    <div
-                        style={{
-                            marginTop: "15px",
-                            marginBottom: "15px"
-                        }}
-                    >
+        <TileLayer
+          attribution='&copy; OpenStreetMap contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
 
-                        <p>
-                            <strong>Algoritmo:</strong>
-                            {" "}
-                            {metricas.algorithm}
-                        </p>
+        {inicio.lat && inicio.lng && (
+          <Marker
+            position={[
+              Number(inicio.lat),
+              Number(inicio.lng)
+            ]}
+          >
+            <Popup>Inicio</Popup>
+          </Marker>
+        )}
 
-                        <p>
-                            <strong>Distancia:</strong>
-                            {" "}
-                            {metricas.distance_meters?.toFixed(2)}
-                            {" "}m
-                        </p>
+        {fin.lat && fin.lng && (
+          <Marker
+            position={[
+              Number(fin.lat),
+              Number(fin.lng)
+            ]}
+          >
+            <Popup>Fin</Popup>
+          </Marker>
+        )}
 
-                        <p>
-                            <strong>Tiempo estimado:</strong>
-                            {" "}
-                            {metricas.estimated_time_seconds?.toFixed(2)}
-                            {" "}s
-                        </p>
+        {ruta?.path?.length > 0 && (
+          <Polyline
+            positions={ruta.path}
+            color="blue"
+          />
+        )}
 
-                        <p>
-                            <strong>Tiempo ejecución:</strong>
-                            {" "}
-                            {metricas.execution_time_ms?.toFixed(2)}
-                            {" "}ms
-                        </p>
+      </MapContainer>
 
-                    </div>
-                )
-            }
+    </div>
+  );
+};
 
-            {/* =========================
-                MAPA
-            ========================== */}
-
-            <MapContainer
-                center={[19.0414, -98.2063]}
-                zoom={14}
-                style={{
-                    height: "500px",
-                    width: "100%"
-                }}
-            >
-
-                <TileLayer
-                    attribution='&copy; OpenStreetMap contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-
-                {/* Inicio */}
-
-                <Marker
-                    position={[
-                        Number(inicio.lat),
-                        Number(inicio.lng)
-                    ]}
-                >
-                    <Popup>
-                        Inicio
-                    </Popup>
-                </Marker>
-
-                {/* Fin */}
-
-                <Marker
-                    position={[
-                        Number(fin.lat),
-                        Number(fin.lng)
-                    ]}
-                >
-                    <Popup>
-                        Destino
-                    </Popup>
-                </Marker>
-
-                {/* Ruta */}
-
-                {
-                    ruta.length > 0 && (
-
-                        <Polyline
-                            positions={ruta}
-                            color="blue"
-                        />
-                    )
-                }
-
-            </MapContainer>
-
-        </div>
-    );
-}
+export default MapaRuta;

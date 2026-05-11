@@ -1,29 +1,25 @@
 import osmnx as ox
-from app.config.settings import DEFAULT_SPEED_KMH
+
+ox.settings.use_cache = True
+ox.settings.log_console = False
 
 print("Descargando red vial...")
 
-# Coordenadas del centro de Puebla
-center_point = (19.0414, -98.2063)
+# Puebla centro aproximado
+CENTER_POINT = (19.0433, -98.2019)
 
-# Descargar calles alrededor del punto
+# radio en metros
+DISTANCE = 5000
+
+# CAMBIO IMPORTANTE:
+# usamos graph_from_point en vez de graph_from_place
+
 G = ox.graph_from_point(
-    center_point,
-    dist=5000,
+    CENTER_POINT,
+    dist=DISTANCE,
     network_type="drive"
 )
 
-print("Red vial cargada")
-
-# Velocidad en m/s
-speed_m_per_s = (DEFAULT_SPEED_KMH * 1000) / 3600
-
-# Agregar pesos a las aristas
-for u, v, key, data in G.edges(keys=True, data=True):
-
-    distance = data.get("length", 1)
-
-    time_seconds = distance / speed_m_per_s
-
-    data["weight"] = distance
-    data["time"] = time_seconds
+print("Red vial cargada correctamente")
+print(f"Nodos: {len(G.nodes)}")
+print(f"Aristas: {len(G.edges)}")

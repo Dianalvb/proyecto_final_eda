@@ -1,39 +1,35 @@
 import networkx as nx
 import time
-from math import radians, sin, cos, sqrt, atan2
 
-def heuristic(node1, node2, graph):
+def heuristic(u, v, G):
 
-    lat1 = graph.nodes[node1]["y"]
-    lon1 = graph.nodes[node1]["x"]
+    y1 = G.nodes[u]["y"]
+    x1 = G.nodes[u]["x"]
 
-    lat2 = graph.nodes[node2]["y"]
-    lon2 = graph.nodes[node2]["x"]
+    y2 = G.nodes[v]["y"]
+    x2 = G.nodes[v]["x"]
 
-    R = 6371000
-
-    dlat = radians(lat2 - lat1)
-    dlon = radians(lon2 - lon1)
-
-    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
-
-    c = 2 * atan2(sqrt(a), sqrt(1 - a))
-
-    return R * c
+    return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
 
 
-def run_astar(graph, origin, destination):
+def astar_route(G, start_node, end_node):
 
     start_time = time.time()
 
-    path = nx.astar_path(
-        graph,
-        origin,
-        destination,
-        heuristic=lambda a, b: heuristic(a, b, graph),
-        weight="weight"
+    route = nx.astar_path(
+        G,
+        start_node,
+        end_node,
+        heuristic=lambda u, v: heuristic(u, v, G),
+        weight="length"
     )
 
     execution_time = (time.time() - start_time) * 1000
 
-    return path, execution_time
+    distance = nx.path_weight(
+        G,
+        route,
+        weight="length"
+    )
+
+    return route, distance, execution_time

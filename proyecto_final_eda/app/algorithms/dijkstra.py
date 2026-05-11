@@ -1,18 +1,24 @@
 import networkx as nx
 import time
 
-def run_dijkstra(graph, origin, destination):
+def dijkstra_route(G, start_node, end_node):
 
     start_time = time.time()
 
-    path = nx.shortest_path(
-        graph,
-        source=origin,
-        target=destination,
-        weight="weight",
-        method="dijkstra"
+    route = nx.shortest_path(
+        G,
+        start_node,
+        end_node,
+        weight="length"
     )
 
     execution_time = (time.time() - start_time) * 1000
 
-    return path, execution_time
+    distance = nx.shortest_path_length(
+        G,
+        start_node,
+        end_node,
+        weight="length"
+    )
+
+    return route, distance, execution_time

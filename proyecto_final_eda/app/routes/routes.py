@@ -4,97 +4,100 @@ import osmnx as ox
 from app.schemas.route_schema import RouteRequest
 from app.services.graph_service import G
 
-from app.algorithms.dijkstra import run_dijkstra
-from app.algorithms.astar import run_astar
-from app.algorithms.k_shortest import run_k_shortest
+from app.algorithms.dijkstra import dijkstra_route
+from app.algorithms.astar import astar_route
+from app.algorithms.k_shortest import k_shortest_routes
 
-from app.utils.metrics import (
-    calculate_distance,
-    calculate_time,
-    path_to_coordinates
-)
+from app.utils.metrics import route_to_coordinates
+
+
 
 router = APIRouter()
 
-@router.post("/route")
 
-def calculate_route(request: RouteRequest):
+
+@router.post("/routes")
+def calculate_route(data: RouteRequest):
 
     try:
 
-        origin = ox.distance.nearest_nodes(
+        start_node = ox.distance.nearest_nodes(
             G,
-            request.origin_lon,
-            request.origin_lat
+            data.lon_inicio,
+            data.lat_inicio
         )
 
-        destination = ox.distance.nearest_nodes(
+        end_node = ox.distance.nearest_nodes(
             G,
-            request.destination_lon,
-            request.destination_lat
+            data.lon_destino,
+            data.lat_destino
         )
 
-        if request.algorithm == "dijkstra":
+        if data.algorithm == "dijkstra":
 
-            path, execution_time = run_dijkstra(
+            route, distance, exec_time = dijkstra_route(
                 G,
-                origin,
-                destination
+                start_node,
+                end_node
             )
 
+            coordinates = route_to_coordinates(G, route)
+
             return {
-                "algorithm": "Dijkstra",
-                "distance_meters": calculate_distance(G, path),
-                "estimated_time_seconds": calculate_time(G, path),
-                "execution_time_ms": execution_time,
-                "nodes_explored": len(path),
-                "coordinates": path_to_coordinates(G, path)
+                "algorithm": "dijkstra",
+                "distance_meters": round(distance, 2),
+                "execution_time_ms": round(exec_time, 2),
+                "path": coordinates
             }
 
-        elif request.algorithm == "astar":
+        elif data.algorithm == "astar":
 
-            path, execution_time = run_astar(
+            route, distance, exec_time = astar_route(
                 G,
-                origin,
-                destination
+                start_node,
+                end_node
             )
 
+            coordinates = route_to_coordinates(G, route)
+
             return {
-                "algorithm": "A*",
-                "distance_meters": calculate_distance(G, path),
-                "estimated_time_seconds": calculate_time(G, path),
-                "execution_time_ms": execution_time,
-                "nodes_explored": len(path),
-                "coordinates": path_to_coordinates(G, path)
+                "algorithm": "astar",
+                "distance_meters": round(distance, 2),
+                "execution_time_ms": round(exec_time, 2),
+                "path": coordinates
             }
 
-        elif request.algorithm == "kshortest":
+        elif data.algorithm == "kshortest":
 
-            paths, execution_time = run_k_shortest(
+            routes, exec_time = k_shortest_routes(
                 G,
-                origin,
-                destination
+                start_node,
+                end_node
             )
 
-            routes = []
+            formatted_routes = []
 
-            for path in paths:
+            for route in routes:
 
-                routes.append({
-                    "distance_meters": calculate_distance(G, path),
-                    "estimated_time_seconds": calculate_time(G, path),
-                    "nodes_explored": len(path),
-                    "coordinates": path_to_coordinates(G, path)
-                })
+                coordinates = route_to_coordinates(G, route)
+
+                formatted_routes.append(coordinates)
 
             return {
-                "algorithm": "k-shortest-paths",
-                "execution_time_ms": execution_time,
-                "routes": routes
+                "algorithm": "kshortest",
+                "execution_time_ms": round(exec_time, 2),
+                "routes": formatted_routes
             }
 
         else:
-            raise HTTPException(status_code=400, detail="Algoritmo inválido")
+            raise HTTPException(
+                status_code=400,
+                detail="Algoritmo no válido"
+            )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )

@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+osmnx
+networkx
+geopandas
+shapely
+pydantic
+python-dotenv
+numpy
+pandas
